@@ -3,10 +3,7 @@ package com.aquaq.tinpui.springdemo.springdemo;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.Version;
+import javax.persistence.*;
 
 // @Data is a Project Lombok annotation used to auto generate getters, setters, constructors
 // and other things, so you don't have to.
@@ -27,11 +24,17 @@ public class Employee {
     // and updated every time a row is inserted or updated.
     private @Version @JsonIgnore Long version;
 
+    // Employees have a many-to-one relationship with Managers.
+    /* We do not need to create a corresponding @OneToMany annotation for Managers since we
+       haven't defined the need to look that up. */
+    private @ManyToOne Manager manager;
+
     private Employee() {}
 
-    public Employee(String firstName, String lastName, String description) {
+    public Employee(String firstName, String lastName, String description, Manager manager) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.description = description;
+        this.manager = manager;
     }
 }

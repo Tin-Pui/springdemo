@@ -51,9 +51,23 @@ class App extends React.Component {
 					path: employeeCollection.entity._links.profile.href,
 					headers: {'Accept': 'application/schema+json'}
 				}).then(schema => {
-					this.schema = schema.entity;
-					this.links = employeeCollection.entity._links;
-					return employeeCollection;
+				    /**
+				     * Filter unneeded JSON Schema properties, like uri references and
+				     * subtypes ($ref). Trim out both URI relations as well as $ref entries.
+				     */
+				    Object.keys(schema.entity.properties).forEach(function (property) {
+				    	if (schema.entity.properties[property].hasOwnProperty('format') &&
+				    		schema.entity.properties[property].format === 'uri') {
+				    		delete schema.entity.properties[property];
+				    	}
+				    	else if (schema.entity.properties[property].hasOwnProperty('$ref')) {
+				    		delete schema.entity.properties[property];
+				    	}
+				    });
+
+				    this.schema = schema.entity;
+				    this.links = employeeCollection.entity._links;
+				    return employeeCollection;
 				});
 		}).then(employeeCollection => {
 			this.page = employeeCollection.entity.page;
@@ -105,6 +119,10 @@ class App extends React.Component {
 		}).done(response => {
 			/* Let the websocket handler update the state */
 		}, response => {
+			if (response.status.code === 403) {
+        		alert('ACCESS DENIED: You are not authorized to update ' +
+        			employee.entity._links.self.href);
+        	}
 			if (response.status.code === 412) {
 				alert('DENIED: Unable to update ' + employee.entity._links.self.href + '. Your copy is stale.');
 			}
@@ -114,7 +132,17 @@ class App extends React.Component {
 
 	// tag::delete[]
 	onDelete(employee) {
-		client({method: 'DELETE', path: employee.entity._links.self.href});
+	    client({
+	        method: 'DELETE',
+	        path: employee.entity._links.self.href
+	    }).done(response => {
+	        /* let the websocket handle updating the UI */
+	    }, response => {
+	    	if (response.status.code === 403) {
+	    		alert('ACCESS DENIED: You are not authorized to delete ' +
+	    			employee.entity._links.self.href);
+		    }
+	    });
 	}
 	// end::delete[]
 
@@ -255,6 +283,7 @@ class CreateDialog extends React.Component {
 		// Invoke App.onCreate after building up newEmployee.
 		this.props.onCreate(newEmployee);
 
+
 		// clear out the dialog's inputs
 		this.props.attributes.forEach(attribute => {
 			ReactDOM.findDOMNode(this.refs[attribute]).value = ''; // clear out the dialog's inputs
@@ -306,13 +335,15 @@ class UpdateDialog extends React.Component {
 		// Create an updateEmployee object with blank attributes.
 		var updatedEmployee = {};
 		// Use React.findDOMNode() to extract details of the pop-up using React refs.
+		var attributeNumber = 0;
 		this.props.attributes.forEach(attribute => {
 		// Load input values into the updatedEmployee object.
-			updatedEmployee[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
+		// TODO : The findDOMNode() method returns null for the manager attribute
+		    updatedEmployee[attribute] = ReactDOM.findDOMNode(this.refs[attribute]).value.trim();
 		});
 		// Invoke the onUpdate() method.
 		this.props.onUpdate(this.props.employee, updatedEmployee);
-		window.location = "#";
+        window.location = "#";
 	}
 
 	render() {
@@ -431,6 +462,7 @@ class EmployeeList extends React.Component {
 							<th>First Name</th>
 							<th>Last Name</th>
 							<th>Description</th>
+							<th>Manager</th>
 							<th></th>
 							<th></th>
 						</tr>
@@ -459,12 +491,14 @@ class Employee extends React.Component {
 		this.props.onDelete(this.props.employee);
 	}
 
+    // Draw what appears on the UI (in the table) for each employee.
 	render() {
 		return (
 			<tr>
 				<td>{this.props.employee.entity.firstName}</td>
 				<td>{this.props.employee.entity.lastName}</td>
 				<td>{this.props.employee.entity.description}</td>
+				<td>{this.props.employee.entity.manager.name}</td>
 				<td>
 					<UpdateDialog employee={this.props.employee}
 								  attributes={this.props.attributes}

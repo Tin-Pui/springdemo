@@ -7,6 +7,13 @@
     <link rel="stylesheet" href="/main.css" />
 </head>
 <body>
+<!-- Display who is logged in as well as provide a logout button. -->
+<div>
+    Hello, <span th:text="${#authentication.name}">user</span>.
+    <form th:action="@{/logout}" method="post">
+        <input type="submit" value="Log Out"/>
+    </form>
+</div>
 <!-- Direct React to plug in the rendered output -->
 <div id="react"></div>
 <!-- Specify the bundled javascript. -->
